@@ -12,5 +12,5 @@ import pymongo
 
 
 def update_topics(mongo_collection, name, topics):
-    """docs"""
-    mongo_collection.update_many({"name": name}, {"$set": {"topics": topics}})
+    """Updates all topics of a school document"""
+    return mongo_collection.update_many({"name": name}, {"$set": {"topics": topics}})
