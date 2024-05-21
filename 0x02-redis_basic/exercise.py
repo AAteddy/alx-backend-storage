@@ -19,11 +19,13 @@ from functools import wraps
 
 
 def count_calls(method: Callable) -> Callable:
-    """doc doc class"""
+    """Counts how many times methods of the Cache class are called"""
 
     @wraps(method)
     def wrapper(self, *args, **kwargs):
-        """doc doc class"""
+        """Increments the count for that key every time the method
+        is called and returns the value returned by the original method
+        """
         key = method.__qualname__
         self._redis.incr(key)
         return method(self, *args, **kwargs)
@@ -32,23 +34,25 @@ def count_calls(method: Callable) -> Callable:
 
 
 def call_history(method: Callable) -> Callable:
-    """doc doc class"""
-    inkey = method.__qualname__ + ":inputs"
-    outkey = method.__qualname__ + ":outputs"
+    """Stores the history of inputs and outputs"""
+    inpkey = method.__qualname__ + ":inputs"
+    outpkey = method.__qualname__ + ":outputs"
 
     @wraps(method)
     def wrapper(self, *args, **kwargs):
-        """doc doc class"""
-        self._redis.rpush(inkey, str(args))
+        """Appends the input argument and returns the output"""
+        self._redis.rpush(inpkey, str(args))
         res = method(self, *args, **kwargs)
-        self._redis.rpush(outkey, str(res))
+        self._redis.rpush(outpkey, str(res))
         return res
 
     return wrapper
 
 
 def replay(method: Callable) -> None:
-    """doc doc class"""
+    """A function that displays the history of calls of a
+    particular function.
+    """
     input_key = "{}:inputs".format(method.__qualname__)
     output_key = "{}:outputs".format(method.__qualname__)
 
@@ -68,14 +72,16 @@ class Cache:
     """doc doc class"""
 
     def __init__(self):
-        """doc doc method"""
+        """Redis Client initialization"""
         self._redis = redis.Redis()
         self._redis.flushdb()
 
     @count_calls
     @call_history
     def store(self, data: Union[str, bytes, int, float]) -> str:
-        """doc doc method"""
+        """Takes a data and a random generated key
+        and returns a string.
+        """
         keyx = str(uuid.uuid4())
         self._redis.set(keyx, data)
         return keyx
@@ -83,16 +89,16 @@ class Cache:
     def get(
         self, key: str, fn: Optional[Callable] = None
     ) -> Union[str, bytes, int, float]:
-        """doc doc method"""
+        """Reads from Redis and recovers the original type"""
         value = self._redis.get(key)
         if fn:
             value = fn(value)
         return value
 
     def get_str(self, key: str) -> str:
-        """doc doc method"""
+        """Parametrize Cache.get to a string conversion function"""
         return self.get(key, fn=str)
 
     def get_int(self, key: str) -> int:
-        """doc doc method"""
+        """Parametrize Cache.get to an integer conversion function"""
         return self.get(key, fn=int)
